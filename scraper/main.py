@@ -33,9 +33,11 @@ def get_courses(dept: str, term: str):
 
     courses_doc = bs(courses_html.content, 'html.parser')
     select = courses_doc.select('.course-id') # retrieves list of course ids for dept
+    sDescription = courses_doc.select('.course-title') # retrieves list of course descriptions for dept
+    desc = [description.decode_contents() for description in sDescription]
     courses = [course.decode_contents() for course in select]
     course_list = []
-    
+    i = 0;
     for c in courses:
         course_html = html_response(f"https://app.testudo.umd.edu/soc/{term}/sections?courseIds={c}")
         course_doc = bs(course_html.content, 'html.parser')
@@ -48,8 +50,10 @@ def get_courses(dept: str, term: str):
                     prof_list.append(p)
             course_list.append({
             "name": c,
-            "professors": prof_list
+            "professors": prof_list,
+            "description": desc[i]
             })
+        i += 1
 
     return course_list
 
@@ -69,7 +73,7 @@ def main():
     for dept in depts:
         courses = get_courses(dept, term)
         data["depts"].append({
-            "name": dept,
+            "code": dept,
             "courses": courses
         })
     json_data = json.dumps(data, indent=4)
