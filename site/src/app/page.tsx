@@ -104,7 +104,7 @@ export default function Home() {
   };
 
   return (
-    <div className="mx-auto p-8 space-y-6 font-jakarta">
+    <div className="mx-auto p-8 min-h-screen space-y-6 font-jakarta">
       <div className="absolute top-4 right-4 text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded">
         * FTC: First Time Teaching
       </div>
@@ -189,7 +189,7 @@ export default function Home() {
           })()}
         </div>
       )}
-      <footer className="absolute bottom-0 mt-12 text-center text-gray-600">
+      <footer className=" mt-auto text-center text-gray-600">
         <p>Hashem Alomar</p>
         <a
           href="mailto:halomar@umd.edu"
@@ -198,6 +198,7 @@ export default function Home() {
           halomar@umd.edu
         </a>
       </footer>
+      
     </div>
   );
 }
