@@ -1,103 +1,160 @@
-import Image from "next/image";
+"use client";
+
+import {
+  useState,
+  useEffect,
+  ChangeEvent,
+  KeyboardEvent,
+  MouseEvent,
+} from "react";
+
+interface CourseJson {
+  name:        string;
+  professors:  string[];
+  description: string;
+}
+
+interface Dept {
+  code:    string;
+  courses: CourseJson[];
+}
+
+interface DataJson {
+  depts: Dept[];
+}
+
+interface CourseEntry {
+  dept:        string;
+  name:        string;
+  description: string;
+  professors:  string[];
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [courses, setCourses]           = useState<CourseEntry[]>([]);
+  const [query, setQuery]               = useState("");
+  const [suggestions, setSuggestions]   = useState<CourseEntry[]>([]);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [selectedCourse, setSelectedCourse]     = useState<CourseEntry | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // load & flatten JSON on mount
+  useEffect(() => {
+    fetch("/data.json")
+      .then(res => res.json())
+      .then((data: DataJson) => {
+        const flat = data.depts.flatMap(dept =>
+          dept.courses.map(course => ({
+            dept:        dept.code,
+            name:        course.name,
+            description: course.description,
+            professors:  course.professors,
+          }))
+        );
+        setCourses(flat);
+      })
+      .catch(console.error);
+  }, []);
+
+  // update suggestions when query changes
+  useEffect(() => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    const filtered = courses.filter(c =>
+      c.name.toLowerCase().includes(query.toLowerCase())
+    );
+    setSuggestions(filtered.slice(0, 10));
+    setHighlightedIndex(-1);
+  }, [query, courses]);
+
+  // typing resets selection
+  const handleInput = (e: ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    setSelectedCourse(null);
+  };
+
+  // pick a course
+  const selectCourse = (course: CourseEntry) => {
+    setSelectedCourse(course);
+    setQuery(course.name);
+    setSuggestions([]);
+  };
+
+  // keyboard navigation
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!suggestions.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex(i =>
+        i < suggestions.length - 1 ? i + 1 : 0
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex(i =>
+        i > 0 ? i - 1 : suggestions.length - 1
+      );
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0) {
+        selectCourse(suggestions[highlightedIndex]);
+      }
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto p-8 space-y-6">
+      <h1 className="text-3xl font-bold">Dr. Terp</h1>
+
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search courses… e.g. AAAS100"
+          value={query}
+          onChange={handleInput}
+          onKeyDown={handleKeyDown}
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring"
+        />
+
+        {suggestions.length > 0 && !selectedCourse && (
+          <ul className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto text-black">
+            {suggestions.map((c, idx) => (
+              <li
+                key={c.name}
+                onMouseEnter={() => setHighlightedIndex(idx)}
+                onMouseDown={(e: MouseEvent) => {
+                  e.preventDefault(); // prevent blur
+                  selectCourse(c);
+                }}
+                className={`p-2 cursor-pointer text-black ${
+                  idx === highlightedIndex
+                    ? "bg-gray-200"
+                    : "hover:bg-gray-100"
+                }`}
+              >
+                {c.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {selectedCourse && (
+        <div className="mt-8 p-4 border rounded-lg shadow">
+          <h2 className="text-2xl font-semibold">
+            {selectedCourse.name}
+          </h2>
+          <p className="mt-2 text-gray-700">
+            {selectedCourse.description}
+          </p>
+          <h3 className="mt-4 font-semibold">Professors:</h3>
+          <ul className="list-disc list-inside mt-2 space-y-1">
+            {selectedCourse.professors.map(prof => (
+              <li key={prof}>{prof}</li>
+            ))}
+          </ul>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
     </div>
   );
 }
