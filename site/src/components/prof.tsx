@@ -13,7 +13,7 @@ interface ProfessorInfo {
   type: "professor" | "ta";
   courses: string[];
   average_rating: number;
-  reviews?: any[];
+  reviews?: unknown[];
 }
 
 interface GradeRecord {
