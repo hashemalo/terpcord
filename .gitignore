@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
 # C extensions
 *.so
 
@@ -142,7 +143,6 @@ venv.bak/
 
 # Rope project settings
 .ropeproject
-
 
 
 # mypy
